@@ -72,6 +72,8 @@ typedef int (*open_fn)(const char *path, int flags, ...);
 
 /* this is set during replication plugin initialization from the plugin entry */
 static char *replpluginpath = NULL;
+/* chain requests made by "cn=Directory Manager" */
+static int chain_dm_req = 0;
 static PRBool is_chain_on_update_setup(const Slapi_DN *replroot);
 
 /*
@@ -933,7 +935,7 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
 	 * also - I don't think it is possible to chain directory manager
 	 */
 	slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &requestor_dn);
-	if (slapi_dn_isroot(requestor_dn)) {
+	if ((!chain_dm_req) && slapi_dn_isroot(requestor_dn)) {
 #ifdef DEBUG_CHAIN_ON_UPDATE
 		if (is_internal) {
 			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=-1 op=%d requestor "
@@ -995,6 +997,15 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
 	}
 #endif
 	return chaining_backend;
+}
+
+int
+repl_chain_on_update_full(Slapi_PBlock *pb, Slapi_DN * target_dn,
+					 char **mtn_be_names, int be_count,
+					 Slapi_DN * node_dn, int *mtn_be_states)
+{
+    chain_dm_req = 1;
+    return repl_chain_on_update(pb, target_dn, mtn_be_names, be_count, node_dn, mtn_be_states);
 }
 
 int
